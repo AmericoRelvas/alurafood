@@ -5,7 +5,6 @@ import br.com.alurafood.pagamentos.service.PagamentoService;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import org.springframework.amqp.core.Message;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,17 +34,17 @@ public class PagamentoController {
     @GetMapping("/{id}")
     public ResponseEntity<PagamentoDto> detalhar(@PathVariable @NotNull Long id) {
         PagamentoDto dto = service.obterPorId(id);
+
         return ResponseEntity.ok(dto);
     }
+
 
     @PostMapping
     public ResponseEntity<PagamentoDto> cadastrar(@RequestBody @Valid PagamentoDto dto, UriComponentsBuilder uriBuilder) {
         PagamentoDto pagamento = service.criarPagamento(dto);
         URI endereco = uriBuilder.path("/pagamentos/{id}").buildAndExpand(pagamento.getId()).toUri();
 
-        Message message = new Message(("Criei um pagamento com o id " + pagamento.getId()).getBytes());
-        rabbitTemplate.send("pagamento.concluido", message);
-
+        rabbitTemplate.convertAndSend("pagamentos.ex","", pagamento);
         return ResponseEntity.created(endereco).body(pagamento);
     }
 
@@ -70,5 +69,6 @@ public class PagamentoController {
     public void pagamentoAutorizadoComIntegracaoPendente(Long id, Exception e){
         service.alteraStatus(id);
     }
+
 
 }
